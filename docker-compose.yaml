@@ -1,0 +1,71 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 22181:2181
+  
+  kafka:
+    image: bitnami/kafka:3.1
+    depends_on:
+      - zookeeper
+    ports:
+      - 29092:29092
+    expose:
+      - 9092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      ALLOW_PLAINTEXT_LISTENER: yes
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  jobmanager:
+    image: flink:1.14.4-scala_2.12
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8081"
+    expose:
+      - 5555
+    command: standalone-job --job-classname org.myorg.quickstart.OpenSkyStreamApp
+    # command: jobmanager
+    volumes:
+      - ./quickstart/target:/opt/flink/usrlib
+      - ./:/usr/local/flink
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        parallelism.default: 1        
+
+  taskmanager:
+    image: flink:1.14.4-scala_2.12
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    scale: 1
+    volumes:
+      - ./quickstart/target:/opt/flink/usrlib
+      - ./:/usr/local/flink
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 2
+        parallelism.default: 1 
+
+  frontend:
+    build: ./read-from-socket
+    environment:
+      host: jobmanager
+      port: 5555
+    ports:
+      - "8080:8080"
+    expose:
+      - 8080

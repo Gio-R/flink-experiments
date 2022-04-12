@@ -1,0 +1,9 @@
+./bin/
+kafka-topics.sh --create --topic input-topic --partitions 1 --replication-factor 1 --bootstrap-server localhost:29092
+
+./bin/
+kafka-console-consumer.sh --topic output-topic --bootstrap-server localhost:29092
+./bin/kafka-console-consumer --topic input-topic --bootstrap-server localhost:29092
+
+./bin/
+kafka-console-producer.sh --topic input-topic --broker-list localhost:29092
